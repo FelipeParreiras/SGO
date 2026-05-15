@@ -1,0 +1,75 @@
+@startuml
+title SGO - Diagrama de Pacotes
+
+top to bottom direction
+
+skinparam backgroundColor #FFFFFF
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam linetype ortho
+skinparam nodesep 60
+skinparam ranksep 70
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+
+skinparam package {
+  BorderColor #2F5D8C
+  FontColor #102A43
+  FontStyle bold
+}
+
+package "Cliente" as Cliente #D6EAF8 {
+  [Portal Web SGO] as PortalWeb
+}
+
+package "Aplicação" as Aplicacao #D5F5E3 {
+  [API SGO] as ApiSGO
+  [Autenticação] as Autenticacao
+}
+
+package "Domínio SGO" as Dominio #FCF3CF {
+  package "Competições" as PkgCompeticoes
+  package "Inscrições" as PkgInscricoes
+  package "Locais" as PkgLocais
+  package "Resultados" as PkgResultados
+  package "Relatórios" as PkgRelatorios
+}
+
+package "Infraestrutura" as Infra #FAD7A0 {
+  package "Persistência" as PkgPersistencia
+  package "Cache" as PkgCache
+  package "Mensageria" as PkgMensageria
+}
+
+cloud "Serviços Externos" as Externos #E8DAEF {
+  [Identity Provider] as IdentityProvider
+  [Calendário Olímpico] as CalendarioOlimpico
+}
+
+PortalWeb -down-> ApiSGO : HTTPS
+ApiSGO -down-> Autenticacao : valida sessão
+Autenticacao -down-> IdentityProvider : OAuth2/JWT
+
+ApiSGO -down-> PkgCompeticoes : orquestra
+PkgCompeticoes -down-> PkgInscricoes : habilita inscrições
+PkgInscricoes -down-> PkgLocais : consulta agenda
+PkgLocais -down-> PkgResultados : competição realizada
+PkgResultados -down-> PkgRelatorios : consolida medalhas
+
+Dominio -down-> PkgPersistencia : repositórios
+PkgRelatorios -down-> PkgCache : ranking de medalhas
+PkgCompeticoes -down-> PkgMensageria : eventos de competição
+PkgResultados -down-> PkgMensageria : eventos de resultado
+PkgCompeticoes -down-> CalendarioOlimpico : sincroniza agenda
+PkgLocais -down-> CalendarioOlimpico : consulta disponibilidade
+
+legend right
+|= Pacote |= Responsabilidade |
+| Cliente | Acesso web ao SGO |
+| Aplicação | API, autenticação e orquestração |
+| Domínio SGO | Regras de negócio olímpicas |
+| Infraestrutura | Banco, cache e eventos |
+| Serviços Externos | Integrações fora do SGO |
+endlegend
+
+@enduml

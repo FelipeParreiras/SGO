@@ -1,0 +1,104 @@
+@startuml
+' Fonte conceitual: Referencias/09-unidade-4-modelagem-de-interacao-diagramas-de-interacao.md
+' Fonte conceitual: Referencias/10-unidade-4-modelagem-de-interacao-modelagem-funcional-com-contratos.md
+' Fonte sintaxe: PlantUML_Language_Reference_Guide_en.pdf
+' Contexto do projeto: SGO - Sistema de Gestao Olimpica para competicoes, inscricoes, locais, resultados e medalhas.
+
+title SGO - Diagrama de Casos de Uso
+
+left to right direction
+
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam linetype ortho
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+
+skinparam usecase {
+  BackgroundColor #F8FBFF
+  BorderColor #2F5D8C
+  ArrowColor #2F5D8C
+  FontColor #102A43
+}
+
+skinparam actor {
+  BorderColor #333333
+  BackgroundColor #FFFFFF
+  FontColor #111827
+}
+
+skinparam note {
+  BackgroundColor #FFFBEB
+  BorderColor #D97706
+  FontColor #3F2A00
+}
+
+actor "Gestor do Evento" as Gestor
+actor "Representante\nde País" as Representante
+actor "Atleta" as Atleta
+actor "Oficial de\nResultados" as Oficial
+actor "Comitê\nOlímpico" as Comite
+
+rectangle "SGO - Sistema de Gestão Olímpica" {
+  usecase "Manter Países,\nAtletas e Locais" as UC_CadastrosBase
+  usecase "Cadastrar\nCompetição" as UC_CadastrarCompeticao
+  usecase "Inscrever\nAtleta" as UC_InscreverAtleta
+  usecase "Alocar\nLocal" as UC_AlocarLocal
+  usecase "Registrar\nResultados" as UC_RegistrarResultados
+  usecase "Gerar Relatório\nde Medalhas" as UC_RelatorioMedalhas
+  usecase "Consultar Agenda\nde Competições" as UC_ConsultarAgenda
+
+  usecase "Validar modalidade,\ndata e horário" as UC_ValidarCompeticao
+  usecase "Verificar atleta,\npaís e modalidade" as UC_VerificarElegibilidade
+  usecase "Verificar conflito\nde horário do local" as UC_VerificarConflito
+  usecase "Definir primeiro,\nsegundo e terceiro lugar" as UC_DefinirPodio
+  usecase "Consolidar quadro\nde medalhas por país" as UC_ConsolidarMedalhas
+}
+
+' Atores e casos de uso principais
+Gestor -[#D32F2F]-> UC_CadastrosBase
+Gestor -[#1976D2]-> UC_CadastrarCompeticao
+Gestor -[#388E3C]-> UC_AlocarLocal
+Gestor -[#F57C00]-> UC_ConsultarAgenda
+
+Representante -[#7B1FA2]-> UC_InscreverAtleta
+Representante -[#00897B]-> UC_ConsultarAgenda
+
+Atleta -[#C2185B]-> UC_ConsultarAgenda
+
+Oficial -[#5D4037]-> UC_RegistrarResultados
+
+Comite -[#455A64]-> UC_RelatorioMedalhas
+Comite -[#E53935]-> UC_ConsultarAgenda
+
+' Includes obrigatórios
+UC_CadastrarCompeticao .[#1E88E5].> UC_ValidarCompeticao : <<include>>
+
+UC_InscreverAtleta .[#FB8C00].> UC_VerificarElegibilidade : <<include>>
+UC_InscreverAtleta .[#8E24AA].> UC_ConsultarAgenda : <<include>>
+
+UC_AlocarLocal .[#00ACC1].> UC_VerificarConflito : <<include>>
+
+UC_RegistrarResultados .[#6D4C41].> UC_DefinirPodio : <<include>>
+
+UC_RelatorioMedalhas .[#9E9D24].> UC_ConsolidarMedalhas : <<include>>
+
+note right of UC_VerificarElegibilidade
+  Regra:
+  um atleta pode participar de várias competições,
+  mas só pode representar um país
+  em cada modalidade.
+end note
+
+note right of UC_VerificarConflito
+  Regra:
+  um local só pode abrigar
+  uma competição por vez.
+end note
+
+note bottom of UC_DefinirPodio
+  O resultado registra ouro, prata
+  e bronze a partir das colocações.
+end note
+
+@enduml

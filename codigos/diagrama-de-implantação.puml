@@ -1,0 +1,116 @@
+@startuml
+' Fonte conceitual: Referencias/01-unidade-2-arquitetura-de-software-modelagem.md
+' Fonte sintaxe: PlantUML_Language_Reference_Guide_en.pdf
+' Contexto do projeto: SGO - Sistema de Gestao Olimpica para competicoes, inscricoes, alocacao de locais, resultados e relatorios de medalhas.
+
+title SGO - Diagrama de Implantacao
+
+left to right direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam node {
+  BackgroundColor #F8FBFF
+  BorderColor #2F5D8C
+}
+skinparam artifact {
+  BackgroundColor #FFF8E1
+  BorderColor #8A6D1D
+}
+skinparam database {
+  BackgroundColor #F4F7F4
+  BorderColor #4E7D4E
+}
+skinparam cloud {
+  BackgroundColor #F7F7F7
+  BorderColor #6B6B6B
+}
+
+node "Dispositivo do\nGestor do Evento" as DevGestor <<cliente>> {
+  artifact "Navegador Web" as BrowserGestor
+}
+
+node "Dispositivo do\nRepresentante de Pais" as DevRepresentante <<cliente>> {
+  artifact "Navegador Web" as BrowserRepresentante
+}
+
+node "Dispositivo do\nOficial de Resultados" as DevOficial <<cliente>> {
+  artifact "Navegador Web" as BrowserOficial
+}
+
+node "Dispositivo do\nComite Olimpico" as DevComite <<cliente>> {
+  artifact "Navegador Web" as BrowserComite
+}
+
+cloud "Internet / Rede Olimpica" as Internet
+
+node "Balanceador de Carga" as LB <<infraestrutura>> {
+  artifact "Proxy HTTPS" as ProxyHTTPS
+}
+
+node "Servidor Web" as WebServer <<servidor>> {
+  artifact "Interface de Usuario\nSGO" as UI
+}
+
+node "Servidor de Aplicacao" as AppServer <<servidor>> {
+  artifact "API / Controlador\nSGO" as API
+  artifact "Modulo de\nCadastros" as ModCadastros
+  artifact "Modulo de\nCompeticoes" as ModCompeticoes
+  artifact "Modulo de\nInscricoes" as ModInscricoes
+  artifact "Modulo de\nAlocacao" as ModAlocacao
+  artifact "Modulo de\nResultados" as ModResultados
+  artifact "Modulo de\nRelatorios" as ModRelatorios
+}
+
+node "Servidor de Banco de Dados" as DbServer <<servidor>> {
+  database "Banco de Dados\nOlimpico" as DB
+}
+
+node "Servidor de Backup" as BackupServer <<servidor>> {
+  artifact "Rotina de Backup" as BackupJob
+  database "Copias de Seguranca" as BackupDB
+}
+
+BrowserGestor --> Internet : HTTPS
+BrowserRepresentante --> Internet : HTTPS
+BrowserOficial --> Internet : HTTPS
+BrowserComite --> Internet : HTTPS
+
+Internet --> LB : HTTPS/443
+LB --> WebServer : HTTPS/443
+WebServer --> AppServer : REST/HTTPS
+
+API --> ModCadastros : chamadas internas
+API --> ModCompeticoes : chamadas internas
+API --> ModInscricoes : chamadas internas
+API --> ModAlocacao : chamadas internas
+API --> ModResultados : chamadas internas
+API --> ModRelatorios : chamadas internas
+
+ModCadastros --> DB : SQL/TCP
+ModCompeticoes --> DB : SQL/TCP
+ModInscricoes --> DB : SQL/TCP
+ModAlocacao --> DB : SQL/TCP
+ModResultados --> DB : SQL/TCP
+ModRelatorios --> DB : SQL/TCP
+
+DbServer --> BackupServer : replica/backup seguro
+BackupJob --> BackupDB : grava snapshots
+
+note right of AppServer
+  Os componentes de negocio ficam no servidor
+  de aplicacao e atendem os fluxos de competicao,
+  inscricao, local, resultado e relatorio.
+end note
+
+note bottom of DbServer
+  Armazena paises, atletas, modalidades,
+  locais, competicoes, inscricoes,
+  resultados e medalhas.
+end note
+
+note bottom of LB
+  Ponto de entrada protegido para todos
+  os perfis de usuario do SGO.
+end note
+
+@enduml

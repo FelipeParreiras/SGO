@@ -1,0 +1,319 @@
+@startuml
+title Sistema de Gestão das Olimpíadas - Diagrama de Componentes
+
+top to bottom direction
+
+skinparam backgroundColor #FFFFFF
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam ArrowFontSize 10
+skinparam ArrowThickness 1.1
+skinparam nodesep 55
+skinparam ranksep 75
+skinparam packageStyle rectangle
+skinparam linetype ortho
+
+skinparam component {
+    BackgroundColor<<frontend>> #D6EAF8
+    BorderColor<<frontend>> #2874A6
+
+    BackgroundColor<<component>> #D5F5E3
+    BorderColor<<component>> #1E8449
+
+    BackgroundColor<<domain>> #FCF3CF
+    BorderColor<<domain>> #B7950B
+
+    BackgroundColor<<database>> #FAD7A0
+    BorderColor<<database>> #CA6F1E
+
+    BackgroundColor<<queue>> #FAD7A0
+    BorderColor<<queue>> #CA6F1E
+
+    BackgroundColor<<cache>> #FAD7A0
+    BorderColor<<cache>> #CA6F1E
+
+    BackgroundColor<<external>> #E8DAEF
+    BorderColor<<external>> #7D3C98
+}
+
+skinparam interface {
+    BackgroundColor #F8F9F9
+    BorderColor #566573
+}
+
+actor "Operador do Evento" as Operador
+
+package "Módulo Cliente" as ModuloCliente {
+    [UI Web\nReact SPA] as UICliente <<frontend>>
+    [Controlador Cliente] as ControladorCliente <<component>>
+
+    interface "InterfaceCliente" as ICliente
+    ControladorCliente o-- ICliente : fornece
+
+    Operador -down-> UICliente : Interação do usuário
+    UICliente -down-> ControladorCliente : Eventos de tela\nformulários e consultas
+}
+
+package "Infraestrutura de Rede" as InfraRede {
+    [Firewall] as Firewall <<component>>
+    [Balanceador de Carga] as LoadBalancer <<component>>
+    [API Gateway] as Gateway <<component>>
+
+    interface "InterfaceGatewayOlimpico" as IGateway
+    Gateway o-- IGateway : fornece
+
+    Firewall -down-> LoadBalancer : HTTPS 443\nfiltrar tráfego
+    LoadBalancer -down-> Gateway : HTTPS 443\ndistribuir requisições
+}
+
+package "Módulo Autenticação" as ModuloAuth {
+    [Controlador Autenticação] as AuthController <<component>>
+
+    interface "InterfaceAutenticacao" as IAuth
+    AuthController o-- IAuth : fornece
+}
+
+cloud "Internet / Serviços Externos" as ServicosExternos {
+    [Identity Provider\nOAuth2/JWT] as IdentityProvider <<external>>
+}
+
+package "Interfaces de Domínio" as InterfacesDominio {
+    together {
+        interface "InterfaceCompeticao" as ICompetition
+        interface "InterfaceInscricaoAtleta" as IRegistration
+        interface "InterfaceAlocacaoLocal" as IVenue
+    }
+
+    together {
+        interface "InterfaceResultado" as IResults
+        interface "InterfaceRelatorioMedalhas" as IReports
+    }
+}
+
+package "Módulos de Domínio" as ModulosDominio {
+    together {
+        package "Módulo Competições" as ModuloCompeticoes {
+            [Controlador Competição] as CompetitionController <<component>>
+            [Serviço Competição] as CompetitionService <<domain>>
+
+            CompetitionController o-- ICompetition : fornece
+            CompetitionController -down-> CompetitionService : Regras de cadastro\nvalidar modalidade, data,\nhorário, local e atletas
+        }
+
+        package "Módulo Atletas e Inscrições" as ModuloInscricoes {
+            [Controlador Inscrição] as RegistrationController <<component>>
+            [Serviço Inscrição de Atletas] as RegistrationService <<domain>>
+
+            RegistrationController o-- IRegistration : fornece
+            RegistrationService ..> ICompetition : requer
+            RegistrationController -down-> RegistrationService : Regras de inscrição\nvalidar atleta, país,\nmodalidade e competição
+        }
+
+        package "Módulo Locais" as ModuloLocais {
+            [Controlador Local] as VenueController <<component>>
+            [Serviço Alocação de Locais] as VenueService <<domain>>
+
+            VenueController o-- IVenue : fornece
+            VenueController -down-> VenueService : Regras de agenda\nimpedir conflito de horário\npor local
+        }
+    }
+
+    together {
+        package "Módulo Resultados" as ModuloResultados {
+            [Controlador Resultado] as ResultsController <<component>>
+            [Serviço Resultados] as ResultsService <<domain>>
+
+            ResultsController o-- IResults : fornece
+            ResultsService ..> IRegistration : requer
+            ResultsController -down-> ResultsService : Registrar pódio\nouro, prata e bronze
+        }
+
+        package "Módulo Relatórios" as ModuloRelatorios {
+            [Controlador Relatórios] as ReportController <<component>>
+            [Serviço Relatório de Medalhas] as MedalReportService <<domain>>
+
+            ReportController o-- IReports : fornece
+            MedalReportService ..> IResults : requer
+            ReportController -down-> MedalReportService : Calcular ranking por país\nouro, prata e bronze
+        }
+    }
+}
+
+package "Interfaces de Infraestrutura" as InterfacesInfra {
+    together {
+        interface "InterfaceBancoDados" as IDatabase
+        interface "InterfaceCache" as ICache
+        interface "InterfaceEventos" as IEvents
+    }
+}
+
+package "Módulo Sistema / Persistência" as ModuloPersistencia {
+    [Controlador Sistema] as SystemController <<component>>
+    database "PostgreSQL\nOlympicDB" as PostgreSQL <<database>>
+
+    SystemController o-- IDatabase : fornece
+    SystemController -down-> PostgreSQL : TCP/IP 5432\nSQL queries\nCRUD e agregações
+}
+
+package "Infraestrutura de Dados e Mensageria" as InfraDados {
+    [Redis Cache] as Redis <<cache>>
+    queue "RabbitMQ\nEvent Bus" as RabbitMQ <<queue>>
+
+    Redis o-- ICache : fornece
+    RabbitMQ o-- IEvents : fornece
+}
+
+' =====================================================
+' Entrada do sistema
+' =====================================================
+
+ControladorCliente -down-> Firewall : HTTPS 443\nREST JSON
+ControladorCliente ..> IGateway : requer
+Gateway ..> IAuth : requer
+Gateway -down-> AuthController : HTTP POST /auth/token\nHTTP GET /auth/me
+AuthController -down-> IdentityProvider : HTTPS OAuth2/JWT
+
+' =====================================================
+' Gateway consumindo interfaces de domínio
+' =====================================================
+
+Gateway -down-> ICompetition : GET/POST/PUT\n/competitions
+Gateway -down-> IRegistration : POST registrations\nGET athlete registrations
+Gateway -down-> IVenue : POST allocations\nGET schedule
+Gateway -down-> IResults : POST/GET results
+Gateway -down-> IReports : GET reports/medals
+
+' =====================================================
+' Serviços requerendo infraestrutura
+' =====================================================
+
+CompetitionService -down-> IDatabase : SQL competitions
+RegistrationService -down-> IDatabase : SQL athletes,\ncountries, registrations
+VenueService -down-> IDatabase : SQL venues,\nschedules
+ResultsService -down-> IDatabase : SQL results,\npodiums
+MedalReportService -down-> IDatabase : SQL medal\naggregates
+
+CompetitionService -down-> ICache : cache\ncompetitions
+VenueService -down-> ICache : cache\nvenue availability
+MedalReportService -down-> ICache : cache\nmedal ranking
+
+CompetitionService -[#DarkOrange,dashed]down-> IEvents : competition.created
+RegistrationService -[#DarkOrange,dashed]down-> IEvents : athlete.registered
+VenueService -[#DarkOrange,dashed]down-> IEvents : venue.allocated
+ResultsService -[#DarkOrange,dashed]down-> IEvents : results.registered
+
+IEvents -[#DarkOrange,dashed]down-> MedalReportService : results.registered\natualizar projeção
+
+' =====================================================
+' Dependências críticas de negócio
+' =====================================================
+
+CompetitionService -[#Red,thickness=2]down-> RegistrationService : competição validada\npermite inscrição
+VenueService -[#Red,thickness=2]down-> SystemController : verificar conflito\nde agenda
+RegistrationService -[#Red,thickness=2]down-> ResultsService : apenas atletas inscritos\npodem ter resultado
+
+' =====================================================
+' Notas de regras de negócio
+' =====================================================
+
+note bottom of CompetitionService
+Cadastro de competições:
+modalidade, data, horário,
+local e atletas inscritos.
+end note
+
+note bottom of RegistrationService
+Um atleta pode participar
+de várias competições,
+mas só pode representar
+um país por modalidade.
+end note
+
+note bottom of VenueService
+Um local só pode abrigar
+uma competição por vez.
+A alocação deve impedir
+conflitos de horário.
+end note
+
+note bottom of ResultsService
+Após a competição,
+registrar vencedor,
+segundo e terceiro lugar.
+end note
+
+note bottom of MedalReportService
+Relatório por país:
+ouro, prata e bronze.
+Pode usar cache para
+consultas frequentes.
+end note
+
+' =====================================================
+' Organização visual com links ocultos
+' =====================================================
+
+Operador -[hidden]down-> UICliente
+UICliente -[hidden]down-> ControladorCliente
+ControladorCliente -[hidden]down-> Firewall
+Firewall -[hidden]down-> LoadBalancer
+LoadBalancer -[hidden]down-> Gateway
+Gateway -[hidden]down-> ICompetition
+
+ICompetition -[hidden]down-> IRegistration
+IRegistration -[hidden]down-> IVenue
+IVenue -[hidden]down-> IResults
+IResults -[hidden]down-> IReports
+
+ICompetition -[hidden]down-> CompetitionController
+IRegistration -[hidden]down-> RegistrationController
+IVenue -[hidden]down-> VenueController
+IResults -[hidden]down-> ResultsController
+IReports -[hidden]down-> ReportController
+
+CompetitionController -[hidden]down-> RegistrationController
+RegistrationController -[hidden]down-> VenueController
+VenueController -[hidden]down-> ResultsController
+ResultsController -[hidden]down-> ReportController
+
+CompetitionService -[hidden]down-> RegistrationService
+RegistrationService -[hidden]down-> VenueService
+VenueService -[hidden]down-> ResultsService
+ResultsService -[hidden]down-> MedalReportService
+
+CompetitionService -[hidden]down-> IDatabase
+IDatabase -[hidden]down-> ICache
+ICache -[hidden]down-> IEvents
+
+IDatabase -[hidden]down-> SystemController
+SystemController -[hidden]down-> PostgreSQL
+ICache -[hidden]down-> Redis
+IEvents -[hidden]down-> RabbitMQ
+
+AuthController -[hidden]down-> IdentityProvider
+Redis -[hidden]down-> RabbitMQ
+
+' =====================================================
+' Legenda
+' =====================================================
+
+legend right
+|= Cor/Estilo |= Significado |
+| Azul claro | Frontend/UI |
+| Verde claro | Componentes de aplicação, controladores e gateway |
+| Amarelo claro | Serviços de domínio e regras de negócio |
+| Laranja claro | Infraestrutura, banco, cache e fila |
+| Roxo claro | Serviço externo |
+| Interface | Contrato fornecido ou requerido |
+| o-- Interface | Interface fornecida pelo componente |
+| ..> Interface | Interface requerida pelo componente |
+| Seta contínua | Comunicação síncrona HTTP/HTTPS/TCP |
+| Seta tracejada laranja | Comunicação assíncrona por evento |
+| Seta vermelha espessa | Dependência crítica de negócio |
+| Rótulos nas setas | Protocolo, método, rota, porta ou payload |
+endlegend
+
+@enduml

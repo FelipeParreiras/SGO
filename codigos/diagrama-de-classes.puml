@@ -1,0 +1,259 @@
+@startuml
+' Fonte conceitual: Referencias/11-unidade-5-projeto-de-classes-diagrama-de-classes-refinamento.md
+' Fonte conceitual: Referencias/14-unidade-5-projeto-de-classes-padroes-grasp-basicos.md
+' Fonte conceitual: Referencias/01-unidade-2-arquitetura-de-software-modelagem.md
+' Fonte sintaxe: PlantUML_Language_Reference_Guide_en.pdf
+' Contexto do projeto: SGO - Sistema de Gestao Olimpica para competicoes, inscricoes de atletas, alocacao de locais, resultados e relatorios de medalhas.
+
+title SGO - Diagrama de Classes
+
+left to right direction
+skinparam backgroundColor #FFFFFF
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam linetype ortho
+skinparam nodesep 42
+skinparam ranksep 36
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam ArrowThickness 1.5
+
+skinparam package {
+  BorderColor #6B7280
+  FontColor #1F2937
+  FontStyle bold
+}
+
+skinparam class {
+  BackgroundColor #F8FBFF
+  BorderColor #2F5D8C
+  FontColor #102A43
+  ArrowColor #2F5D8C
+}
+
+skinparam enum {
+  BackgroundColor #F8FAFC
+  BorderColor #64748B
+  FontColor #334155
+}
+
+skinparam note {
+  BackgroundColor #FFFBEB
+  BorderColor #D97706
+  FontColor #3F2A00
+}
+
+legend right
+  |= Cor / seta |= Significado |
+  |<#EDE9FE>| Servicos de aplicacao |
+  |<#E0F2FE>| Competicoes e agenda |
+  |<#DCFCE7>| Participantes |
+  |<#FCE7F3>| Inscricoes |
+  |<#FEF3C7>| Locais |
+  |<#FEE2E2>| Resultados |
+  |<#ECFEFF>| Relatorios |
+  |<#111827>| Composicao forte |
+  |<#2563EB>| Associacao de dominio |
+  |<#64748B>| Dependencia de servico |
+endlegend
+
+package "1. Aplicacao" <<camada>> as PKG_APP #F5F3FF {
+  class ServicoCompeticoes #EDE9FE {
+    + cadastrarCompeticao(nome: String, modalidade: Modalidade, periodo: Periodo): Competicao
+  }
+
+  class ServicoInscricoes #EDE9FE {
+    + inscreverAtleta(atleta: Atleta, competicao: Competicao, pais: Pais): Inscricao
+    + validarRepresentacao(atleta: Atleta, pais: Pais, modalidade: Modalidade): void
+  }
+
+  class ServicoAlocacaoLocais #EDE9FE {
+    + alocar(competicao: Competicao, local: Local): ReservaLocal
+    + verificarConflito(local: Local, periodo: Periodo): Boolean
+  }
+
+  class ServicoResultados #EDE9FE {
+    + registrarResultado(competicao: Competicao, resultado: Resultado): void
+  }
+
+  class GeradorRelatorioMedalhas #EDE9FE {
+    + gerarRelatorio(): RelatorioMedalhas
+  }
+}
+
+package "2. Competicoes" <<subsistema>> as PKG_COMP #F0F9FF {
+  class Modalidade #E0F2FE {
+    - id: UUID
+    - nome: String
+    + alterarNome(nome: String): void
+  }
+
+  class Periodo #E0F2FE {
+    - data: Date
+    - inicio: Time
+    - fim: Time
+    + sobrepoe(outro: Periodo): Boolean
+  }
+
+  class Competicao #E0F2FE {
+    - id: UUID
+    - nome: String
+    - status: StatusCompeticao
+    + abrirInscricoes(): void
+    + inscrever(inscricao: Inscricao): void
+    + alocarLocal(local: Local, periodo: Periodo): void
+    + registrarResultado(resultado: Resultado): void
+  }
+
+  enum StatusCompeticao {
+    Planejada
+    AbertaParaInscricoes
+    LocalAlocado
+    Realizada
+    Encerrada
+  }
+}
+
+package "3. Participantes" <<subsistema>> as PKG_PART #F0FDF4 {
+  class Pais #DCFCE7 {
+    - id: UUID
+    - nome: String
+    - sigla: String
+  }
+
+  class Atleta #DCFCE7 {
+    - id: UUID
+    - nome: String
+    - documento: String
+    - dataNascimento: Date
+    + podeRepresentar(pais: Pais, modalidade: Modalidade): Boolean
+  }
+
+  class RepresentacaoModalidade #DCFCE7 {
+    - id: UUID
+    + validarUnicidade(): Boolean
+  }
+}
+
+package "4. Inscricoes" <<subsistema>> as PKG_INSC #FDF2F8 {
+  class Inscricao #FCE7F3 {
+    - id: UUID
+    - dataInscricao: DateTime
+    - situacao: SituacaoInscricao
+    + confirmar(): void
+    + cancelar(): void
+  }
+
+  enum SituacaoInscricao {
+    Pendente
+    Confirmada
+    Cancelada
+  }
+}
+
+package "5. Locais" <<subsistema>> as PKG_LOC #FFFBEB {
+  class Local #FEF3C7 {
+    - id: UUID
+    - nome: String
+    - endereco: String
+    - capacidade: Integer
+    + comportaCompeticao(competicao: Competicao): Boolean
+  }
+
+  class ReservaLocal #FEF3C7 {
+    - id: UUID
+    + conflitaCom(outra: ReservaLocal): Boolean
+  }
+}
+
+package "6. Resultados" <<subsistema>> as PKG_RES #FEF2F2 {
+  class Resultado #FEE2E2 {
+    - id: UUID
+    - dataRegistro: DateTime
+    + definirPodio(ouro: Atleta, prata: Atleta, bronze: Atleta): void
+    + obterMedalhas(): List<Medalha>
+  }
+
+  class Colocacao #FEE2E2 {
+    - posicao: Integer
+    + tipoMedalha(): TipoMedalha
+  }
+
+  class Medalha #FEE2E2 {
+    - tipo: TipoMedalha
+    - dataConquista: Date
+  }
+
+  enum TipoMedalha {
+    Ouro
+    Prata
+    Bronze
+  }
+}
+
+package "7. Relatorios" <<subsistema>> as PKG_REL #ECFEFF {
+  class RelatorioMedalhas #CFFAFE {
+    - geradoEm: DateTime
+    + gerar(medalhas: List<Medalha>): List<DesempenhoPais>
+  }
+
+  class DesempenhoPais #CFFAFE {
+    - totalOuro: Integer
+    - totalPrata: Integer
+    - totalBronze: Integer
+    + totalMedalhas(): Integer
+  }
+}
+
+Competicao "1" -[#2563EB]-> "1" Modalidade : modalidade
+Competicao "1" *-[#111827]- "1" Periodo : periodo
+Competicao "1" -[#2563EB]-> "0..*" Inscricao : inscricoes
+Competicao "1" -[#2563EB]-> "0..1" ReservaLocal : reserva
+Competicao "1" -[#2563EB]-> "0..1" Resultado : resultado
+
+Atleta "0..*" -[#2563EB]- "1" Pais : pais de origem
+RepresentacaoModalidade "1" -[#2563EB]-> "1" Atleta : atleta
+RepresentacaoModalidade "1" -[#2563EB]-> "1" Pais : pais representado
+RepresentacaoModalidade "1" -[#2563EB]-> "1" Modalidade : modalidade
+
+Inscricao "1" -[#2563EB]-> "1" Competicao : competicao
+Inscricao "1" -[#2563EB]-> "1" Atleta : atleta
+Inscricao "1" -[#2563EB]-> "1" Pais : pais representado
+
+Local "1" -[#2563EB]-> "0..*" ReservaLocal : agenda
+ReservaLocal "1" -[#2563EB]-> "1" Periodo : periodo
+ReservaLocal "1" -[#2563EB]-> "1" Competicao : competicao
+
+Resultado "1" *-[#111827]- "3" Colocacao : podio
+Colocacao "1" -[#2563EB]-> "1" Atleta : atleta
+Colocacao "0..1" -[#2563EB]-> "0..1" Medalha : medalha
+Medalha "1" -[#2563EB]-> "1" Pais : pais
+Medalha "1" -[#2563EB]-> "1" Competicao : competicao
+
+RelatorioMedalhas "1" *-[#111827]- "1..*" DesempenhoPais : desempenhos
+DesempenhoPais "1" -[#2563EB]-> "1" Pais : pais
+
+ServicoCompeticoes .[#64748B].> Competicao : cadastra
+ServicoInscricoes .[#64748B].> Inscricao : cria
+ServicoInscricoes .[#64748B].> RepresentacaoModalidade : valida unicidade
+ServicoAlocacaoLocais .[#64748B].> ReservaLocal : evita conflito
+ServicoResultados .[#64748B].> Resultado : registra
+GeradorRelatorioMedalhas .[#64748B].> RelatorioMedalhas : gera
+
+note right of RepresentacaoModalidade
+  Restricao: deve existir no maximo uma
+  representacao por par (Atleta, Modalidade).
+end note
+
+note right of ReservaLocal
+  Restricao: reservas do mesmo local
+  nao podem ter periodos sobrepostos.
+end note
+
+note bottom of Resultado
+  O podio possui exatamente tres colocacoes:
+  ouro, prata e bronze.
+end note
+
+@enduml
