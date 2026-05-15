@@ -1,0 +1,108 @@
+@startuml
+' Fonte conceitual: Referencias/09-unidade-4-modelagem-de-interacao-diagramas-de-interacao.md
+' Fonte conceitual: Referencias/10-unidade-4-modelagem-de-interacao-modelagem-funcional-com-contratos.md
+' Fonte conceitual: Referencias/14-unidade-5-projeto-de-classes-padroes-grasp-basicos.md
+' Fonte sintaxe: PlantUML_Language_Reference_Guide_en.pdf
+' Contexto do projeto: SGO - fluxo principal para cadastrar competicao, alocar local, inscrever atleta, registrar resultado e gerar relatorio de medalhas.
+
+title SGO - Diagrama de Sequencia
+
+autonumber
+skinparam shadowing false
+skinparam sequence {
+  ArrowColor #2F5D8C
+  ActorBorderColor #333333
+  ActorBackgroundColor #FFFFFF
+  LifeLineBorderColor #8A8A8A
+  ParticipantBorderColor #2F5D8C
+  ParticipantBackgroundColor #F8FBFF
+}
+
+actor "Gestor do Evento" as Gestor
+actor "Representante\nde Pais" as Representante
+actor "Oficial de\nResultados" as Oficial
+actor "Comite Olimpico" as Comite
+
+boundary "Interface de\nUsuario" as UI
+control "API / Controlador\nSGO" as API
+control "Servico de\nCompeticoes" as SCompeticoes
+control "Servico de\nAlocacao" as SAlocacao
+control "Servico de\nInscricoes" as SInscricoes
+control "Servico de\nResultados" as SResultados
+control "Gerador de\nRelatorio" as GRelatorio
+database "Repositorios\nSGO" as Repo
+
+== Cadastro e alocacao da competicao ==
+
+Gestor -> UI : cadastrarCompeticao(nome, modalidade, data, horario, local)
+UI -> API : enviarDadosCompeticao(dados)
+API -> SCompeticoes : cadastrarCompeticao(dados)
+SCompeticoes -> Repo : buscarModalidade(modalidade)
+Repo --> SCompeticoes : modalidade
+SCompeticoes -> SAlocacao : verificarDisponibilidade(local, data, horario)
+SAlocacao -> Repo : buscarReservas(local, data)
+Repo --> SAlocacao : reservas
+
+alt local disponivel
+  SAlocacao --> SCompeticoes : semConflito
+  SCompeticoes -> Repo : salvarCompeticao(competicao)
+  SCompeticoes -> Repo : salvarReservaLocal(local, periodo, competicao)
+  Repo --> SCompeticoes : competicaoConfirmada
+  SCompeticoes --> API : competicaoCadastrada
+  API --> UI : exibirConfirmacao()
+else conflito de horario
+  SAlocacao --> SCompeticoes : conflitoEncontrado
+  SCompeticoes --> API : erroLocalIndisponivel
+  API --> UI : solicitarNovoLocalOuHorario()
+end
+
+== Inscricao de atleta ==
+
+Representante -> UI : inscreverAtleta(atleta, pais, competicao)
+UI -> API : enviarInscricao(atleta, pais, competicao)
+API -> SInscricoes : inscreverAtleta(atleta, pais, competicao)
+SInscricoes -> Repo : buscarCompeticao(competicao)
+Repo --> SInscricoes : competicao
+SInscricoes -> Repo : buscarRepresentacao(atleta, modalidade)
+Repo --> SInscricoes : representacaoAtual
+
+alt atleta pode representar o pais na modalidade
+  SInscricoes -> Repo : salvarInscricao(atleta, pais, competicao)
+  Repo --> SInscricoes : inscricaoConfirmada
+  SInscricoes --> API : inscricaoRealizada
+  API --> UI : exibirInscricaoConfirmada()
+else atleta ja representa outro pais na modalidade
+  SInscricoes --> API : erroRepresentacaoInvalida
+  API --> UI : exibirErroRepresentacao()
+end
+
+== Registro de resultado ==
+
+Oficial -> UI : registrarResultado(competicao, ouro, prata, bronze)
+UI -> API : enviarResultado(podio)
+API -> SResultados : registrarResultado(competicao, podio)
+SResultados -> Repo : buscarInscricoesConfirmadas(competicao)
+Repo --> SResultados : atletasInscritos
+
+alt podio contem atletas inscritos
+  SResultados -> Repo : salvarResultado(competicao, podio)
+  SResultados -> Repo : salvarMedalhas(ouro, prata, bronze)
+  Repo --> SResultados : resultadoRegistrado
+  SResultados --> API : resultadoConfirmado
+  API --> UI : exibirResultadoConfirmado()
+else podio invalido
+  SResultados --> API : erroAtletaNaoInscrito
+  API --> UI : exibirErroResultado()
+end
+
+== Relatorio de medalhas ==
+
+Comite -> UI : gerarRelatorioMedalhas()
+UI -> API : solicitarRelatorioMedalhas()
+API -> GRelatorio : gerarRelatorio()
+GRelatorio -> Repo : consultarMedalhasPorPais()
+Repo --> GRelatorio : totaisOuroPrataBronze
+GRelatorio --> API : relatorioMedalhas
+API --> UI : exibirRelatorioMedalhas()
+
+@enduml

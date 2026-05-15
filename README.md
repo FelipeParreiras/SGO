@@ -61,6 +61,12 @@ Código-fonte: [`codigos/diagrama-de-pacotes.puml`](codigos/diagrama-de-pacotes.
 
 Código-fonte: [`codigos/diagrama-de-componentes.puml`](codigos/diagrama-de-componentes.puml)
 
+### Diagrama de Sequencia
+
+<img width="700px" src="imagens/diagrama-de-sequencia.png"/>
+
+Código-fonte: [`codigos/diagrama-de-sequencia.puml`](codigos/diagrama-de-sequencia.puml)
+
 ### Diagrama de Implantação
 
 <img width="700px" src="imagens/diagrama-de-implantação.png"/>
@@ -77,12 +83,14 @@ Código-fonte: [`codigos/diagrama-de-implantação.puml`](codigos/diagrama-de-im
 |   |-- diagrama-de-classes.png
 |   |-- diagrama-de-pacotes.png
 |   |-- diagrama-de-componentes.png
+|   |-- diagrama-de-sequencia.png
 |   `-- diagrama-de-implantação.png
 `-- codigos/
     |-- diagrama-de-caso-de-uso.puml
     |-- diagrama-de-classes.puml
     |-- diagrama-de-pacotes.puml
     |-- diagrama-de-componentes.puml
+    |-- diagrama-de-sequencia.puml
     `-- diagrama-de-implantação.puml
 ```
 
